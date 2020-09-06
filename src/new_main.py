@@ -23,12 +23,23 @@ def ctc_loss(y_true, y_pred):
     input_placeholder = tf.fill(tf.shape(input_length_samples), max_text_len)
     return keras.backend.ctc_batch_cost(y_true, y_pred, input_placeholder, input_length_samples)
 
+@tf.function
+def ctc_decode(args):
+    y_pred, input_length = args
+    tf.print('rhfdkuag dekuagd')
+    return keras.backend.cast(
+        keras.backend.ctc_decode(
+            y_pred,
+            tf.squeeze(input_length),
+            greedy=False,
+            beam_width=max_text_len,
+            top_paths=1,
+            dtype=tf.dtypes.float32
+        )
+    )
 
-def ctc_decode(y_pred, input_length):
-    return keras.backend.cast(keras.backend.ctc_decode(y_pred, tf.squeeze(input_length), dtype='float32'))
 
-
-def build_model(loss_function):
+def build_model(is_train_model=True):
     model = keras.Sequential([
         keras.layers.experimental.preprocessing.Rescaling(1./255, input_shape=(128, 32)),
         keras.layers.Reshape((128, 32, 1)),
@@ -54,9 +65,12 @@ def build_model(loss_function):
         keras.layers.Softmax()
     ])
 
+    if not is_train_model:
+        model.add(keras.layers.Lambda(ctc_decode, output_shape=(None, None), name='CTCdecode'))
+
     model.compile(
         optimizer='rmsprop',
-        loss=loss_function,
+        loss=ctc_loss,
         metrics=['accuracy']
     )
 
@@ -90,32 +104,32 @@ lastest_cp = tf.train.latest_checkpoint(checkpoint_dir)
 
 if lastest_cp is not None:
     model.load_weights(lastest_cp)
-# else:
-cp_callback = keras.callbacks.ModelCheckpoint(
-    filepath=FilePaths.fnCheckpoint,
-    save_weights_only=True,
-    save_best_only=True,
-    verbose=1
-)
+else:
+    cp_callback = keras.callbacks.ModelCheckpoint(
+        filepath=FilePaths.fnCheckpoint,
+        save_weights_only=True,
+        save_best_only=True,
+        verbose=1
+    )
 
-AUTOTUNE = tf.data.experimental.AUTOTUNE
-train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
-val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
+    AUTOTUNE = tf.data.experimental.AUTOTUNE
+    train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
+    val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
-model.fit(
-    train_ds, 
-    validation_data=val_ds, 
-    epochs=10,
-    callbacks=[cp_callback]
-)
+    model.fit(
+        train_ds, 
+        validation_data=val_ds, 
+        epochs=10,
+        callbacks=[cp_callback]
+    )
 
 
 lastest_cp = tf.train.latest_checkpoint(checkpoint_dir)
-probability_model = build_model(ctc_decode)
+probability_model = build_model(is_train_model=False)
 probability_model.load_weights(lastest_cp)
 # probability_model.summary()
 
-img = preprocess(cv2.imread(FilePaths.fnInfer2, cv2.IMREAD_GRAYSCALE), img_size)
+img = preprocess(cv2.imread(FilePaths.fnInfer, cv2.IMREAD_GRAYSCALE), img_size)
 predictions = probability_model.predict(np.array([img]))
 prediction = predictions[0]
 
