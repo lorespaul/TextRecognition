@@ -63,6 +63,12 @@ model = build_model()
 # model.summary()
 
 
+loader = WordsLoaderDataset(FilePaths.fnTrain, batch_size, img_size, max_text_len)
+train_ds = loader.get_train_dataset(img_size)
+val_ds = loader.get_validation_dataset(img_size)
+char_list = train_ds.class_names
+print('-----------Char list-----------------', train_ds.class_names)
+
 
 checkpoint_dir = path.dirname(FilePaths.fnCheckpoint)
 lastest_cp = tf.train.latest_checkpoint(checkpoint_dir)
@@ -76,12 +82,6 @@ else:
         save_best_only=True,
         verbose=1
     )
-
-    loader = WordsLoaderDataset(FilePaths.fnTrain, batch_size, img_size, max_text_len)
-    train_ds = loader.get_train_dataset(img_size)
-    val_ds = loader.get_validation_dataset(img_size)
-    
-    print('-----------Char list-----------------', train_ds.class_names)
 
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
