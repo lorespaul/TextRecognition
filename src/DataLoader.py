@@ -17,15 +17,25 @@ class Sample:
 
 class Batch:
 	"batch containing images and ground truth texts"
-	def __init__(self, gtTexts, imgs):
+	def __init__(self, gtTexts, imgs, max_text_len, char_list):
 		self.imgs = np.stack(imgs, axis=0)
 		self.gtTexts = gtTexts
+		labels = []
+		for text in self.gtTexts:
+			current_label = []
+			for i in range(max_text_len):
+				if i < len(text):
+					current_label.append(char_list.index(text[i]))
+				else:
+					current_label.append(char_list.index(' '))
+			labels.append(np.array(current_label))
+		self.labels = np.array(labels)
 
 
 class DataLoader:
 	"loads data which corresponds to IAM format, see: http://www.fki.inf.unibe.ch/databases/iam-handwriting-database" 
 
-	def __init__(self, filePath, batchSize, imgSize, maxTextLen):
+	def __init__(self, filePath, batchSize, imgSize, maxTextLen, charList=[]):
 		"loader for dataset at given location, preprocess images and text according to parameters"
 
 		assert filePath[-1]=='/'
@@ -35,6 +45,7 @@ class DataLoader:
 		self.batchSize = batchSize
 		self.imgSize = imgSize
 		self.samples = []
+		self.maxTextLen = maxTextLen
 	
 		f=open(filePath+'words.txt')
 		chars = set()
@@ -85,7 +96,10 @@ class DataLoader:
 		self.trainSet()
 
 		# list of all chars in dataset
-		self.charList = sorted(list(chars))
+		if len(charList) == 0:
+			self.charList = sorted(list(chars))
+		else:
+			self.charList = charList
 
 
 	def truncateLabel(self, text, maxTextLen):
@@ -134,6 +148,4 @@ class DataLoader:
 		gtTexts = [self.samples[i].gtText for i in batchRange]
 		imgs = [preprocess(cv2.imread(self.samples[i].filePath, cv2.IMREAD_GRAYSCALE), self.imgSize, self.dataAugmentation) for i in batchRange]
 		self.currIdx += self.batchSize
-		return Batch(gtTexts, imgs)
-
-
+		return Batch(gtTexts, imgs, self.maxTextLen, self.charList)
