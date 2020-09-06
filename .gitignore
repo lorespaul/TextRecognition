@@ -10,6 +10,6 @@ notes/
 dump/
 venv/
 
-data/checkpoint
-data/cp.ckpt.data-00000-of-00001
-data/cp.ckpt.index
+# data/checkpoint
+# data/cp.ckpt.data-00000-of-00001
+# data/cp.ckpt.index

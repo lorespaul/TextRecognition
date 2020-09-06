@@ -83,10 +83,10 @@ class WordsLoaderDataset(object):
             if i < len(sample.gtText):
                 label.append(self.charList.index(sample.gtText[i]))
             else:
-                label.append(self.charList.index(' '))
+                label.append(0)
 
         sample.img = img
-        sample.label = label
+        sample.label = np.array(label)
         return sample
 
 
