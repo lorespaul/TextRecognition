@@ -23,23 +23,19 @@ def ctc_loss(y_true, y_pred):
     input_placeholder = tf.fill(tf.shape(input_length_samples), max_text_len)
     return keras.backend.ctc_batch_cost(y_true, y_pred, input_placeholder, input_length_samples)
 
-@tf.function
-def ctc_decode(args):
-    y_pred, input_length = args
-    tf.print('rhfdkuag dekuagd')
-    return keras.backend.cast(
-        keras.backend.ctc_decode(
-            y_pred,
-            tf.squeeze(input_length),
-            greedy=False,
-            beam_width=max_text_len,
-            top_paths=1,
-            dtype=tf.dtypes.float32
-        )
-    )
+
+def ctc_decode(y_pred):
+    input_length = tf.math.count_nonzero(tf.math.argmax(y_pred, axis=2), axis=1)
+    return keras.backend.ctc_decode(
+        y_pred,
+        input_length,
+        greedy=False,
+        beam_width=max_text_len,
+        top_paths=1
+    )[0]
 
 
-def build_model(is_train_model=True):
+def build_model(is_train_model=True, print_summary=False):
     model = keras.Sequential([
         keras.layers.experimental.preprocessing.Rescaling(1./255, input_shape=(128, 32)),
         keras.layers.Reshape((128, 32, 1)),
@@ -74,6 +70,9 @@ def build_model(is_train_model=True):
         metrics=['accuracy']
     )
 
+    if print_summary:
+        model.summary()
+
     return model
 
 
@@ -96,15 +95,16 @@ val_ds = loader.get_validation_dataset(img_size)
 char_list = train_ds.class_names
 print('-----------Char list-----------------', train_ds.class_names)
 
-model = build_model(ctc_loss)
-model.summary()
+model = build_model(print_summary=True)
 
 checkpoint_dir = path.dirname(FilePaths.fnCheckpoint)
 lastest_cp = tf.train.latest_checkpoint(checkpoint_dir)
+reload_latest_cp = False
 
 if lastest_cp is not None:
     model.load_weights(lastest_cp)
 else:
+    reload_latest_cp = True
     cp_callback = keras.callbacks.ModelCheckpoint(
         filepath=FilePaths.fnCheckpoint,
         save_weights_only=True,
@@ -123,28 +123,35 @@ else:
         callbacks=[cp_callback]
     )
 
-
-lastest_cp = tf.train.latest_checkpoint(checkpoint_dir)
+if reload_latest_cp:
+    lastest_cp = tf.train.latest_checkpoint(checkpoint_dir)
 probability_model = build_model(is_train_model=False)
 probability_model.load_weights(lastest_cp)
-# probability_model.summary()
 
 img = preprocess(cv2.imread(FilePaths.fnInfer, cv2.IMREAD_GRAYSCALE), img_size)
-predictions = probability_model.predict(np.array([img]))
-prediction = predictions[0]
+img2 = preprocess(cv2.imread(FilePaths.fnInfer2, cv2.IMREAD_GRAYSCALE), img_size)
+imgs_to_predict = [img, img2]
+predictions = probability_model.predict(np.array(imgs_to_predict))[0]
 
-word_predicted = ''
-for i in range(len(prediction)):
-    step = prediction[i]
-    char_index = np.argmax(step)
-    if char_index < len(char_list):
-        word_predicted += char_list[char_index]
-word_predicted = word_predicted.strip()
+words_predicted = []
+for i in range(len(imgs_to_predict)):
+    prediction = predictions[i]
+    wp = ''
+    for current_step_time in range(len(prediction)):
+        char_index = prediction[current_step_time]
+        # char_index = np.argmax(step)
+        if char_index < len(char_list):
+            wp += char_list[char_index]
+    wp = wp.strip()
+    words_predicted.append(wp)
+    
 
 plt.figure()
-rotate_img = ndimage.rotate(img, 90)
-plt.imshow(rotate_img, origin='lower', cmap=plt.cm.binary)
-plt.colorbar()
-plt.grid(False)
-plt.xlabel(word_predicted)
+for i in range(len(imgs_to_predict)):
+    plt.subplot(len(imgs_to_predict), 1, i + 1)
+    rotate_img = ndimage.rotate(imgs_to_predict[i], 90)
+    plt.imshow(rotate_img, origin='lower', cmap=plt.cm.binary)
+    plt.colorbar()
+    plt.grid(False)
+    plt.xlabel(words_predicted[i])
 plt.show()
