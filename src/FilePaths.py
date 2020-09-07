@@ -3,7 +3,6 @@ class FilePaths:
 	fnCharList = '../model/charList.txt'
 	fnAccuracy = '../model/accuracy.txt'
 	fnTrain = '../data/'
-	fnInfer = '../data/test.png'
-	fnInfer2 = '../data/monday.png'
+	fnInfer = ['../data/test.png', '../data/monday.png']
 	fnCorpus = '../data/corpus.txt'
 	fnCheckpoint = '../data/cp.ckpt'

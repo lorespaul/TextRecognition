@@ -76,17 +76,6 @@ def build_model(is_train_model=True, print_summary=False):
     return model
 
 
-# def show_first_image():
-#     img = preprocess(cv2.imread(FilePaths.fnInfer, cv2.IMREAD_GRAYSCALE), (128, 32))
-#     # img = preprocess(cv2.imread('../data/words/a01/a01-000u/a01-000u-01-02.png', cv2.IMREAD_GRAYSCALE), (128, 32))
-#     plt.figure()
-#     plt.imshow(img, cmap=plt.cm.binary)
-#     plt.colorbar()
-#     plt.grid(False)
-#     plt.show()
-
-# show_first_image()
-# sys.exit(0)
 
 
 loader = WordsLoaderDataset(FilePaths.fnTrain, batch_size, img_size, max_text_len)
@@ -128,9 +117,10 @@ if reload_latest_cp:
 probability_model = build_model(is_train_model=False)
 probability_model.load_weights(lastest_cp)
 
-img = preprocess(cv2.imread(FilePaths.fnInfer, cv2.IMREAD_GRAYSCALE), img_size)
-img2 = preprocess(cv2.imread(FilePaths.fnInfer2, cv2.IMREAD_GRAYSCALE), img_size)
-imgs_to_predict = [img, img2]
+imgs_to_predict = []
+for infer in FilePaths.fnInfer:
+    img = preprocess(cv2.imread(infer, cv2.IMREAD_GRAYSCALE), img_size)
+    imgs_to_predict.append(img)
 predictions = probability_model.predict(np.array(imgs_to_predict))[0]
 
 words_predicted = []
@@ -139,10 +129,9 @@ for i in range(len(imgs_to_predict)):
     wp = ''
     for current_step_time in range(len(prediction)):
         char_index = prediction[current_step_time]
-        # char_index = np.argmax(step)
-        if char_index < len(char_list):
+        if char_index >= 0 and char_index < len(char_list):
             wp += char_list[char_index]
-    wp = wp.strip()
+    # wp = wp.strip()
     words_predicted.append(wp)
     
 
